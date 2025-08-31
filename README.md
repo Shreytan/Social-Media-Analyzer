@@ -4,7 +4,7 @@ A modern web application that analyzes social media posts and suggests engagemen
 
 ## 🎯 Live Demo
 
-🚀 [Live Application]( https://social-media-analyzer-pzvalx04k.vercel.app) 
+🚀 [Live Application](https://social-media-analyzer-2e1wzn14o.vercel.app/) 
 
 ## 📋 Project Overview
 
