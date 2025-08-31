@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import AnimatedBlobs from './components/AnimatedBlobs';
 import Header from './components/Header';
 import { useDropzone } from 'react-dropzone';
-import { FileText, Image, Loader, BarChart2, Sparkles, Star, Copy, Check, Upload, AlertCircle } from 'lucide-react';
+import { FileText, Image, Loader, BarChart2, Sparkles, Star, Copy, Check, Upload, AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function App() {
   const [theme, setTheme] = useState('dark');
@@ -23,18 +23,18 @@ export default function App() {
 
   const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
 
-  // Text extraction simulation (Mock OCR/PDF parsing)
+  // Mock text extraction (simulates OCR for images and PDF parsing)
   const extractTextFromFile = (file) => {
     const mockTexts = {
       'image': [
-        "Just had the most amazing brunch at The Sunny Side! ☀️🥞 The avocado toast was divine and the coffee was perfectly brewed. Highly recommend this cozy spot for a weekend treat! 🌟 #brunch #foodie #weekendvibes",
-        "Check out this incredible sunset from my evening run! 🌅 Nothing beats the feeling of accomplishment after a good workout. Who else is staying active this weekend? #fitness #motivation #sunset",
-        "Excited to announce that I just finished reading 'The Seven Habits of Highly Effective People'! 📚 This book has completely changed my perspective on productivity and leadership. Highly recommend! #reading #selfimprovement #leadership"
+        "Just discovered this incredible sunset view from my evening jog! 🌅 There's something magical about ending the day with nature's masterpiece. Who else finds peace in these golden hour moments? #sunset #mindfulness #gratitude",
+        "Excited to share my latest cooking experiment - homemade pasta with garden-fresh basil! 🍝 The aroma filling my kitchen right now is absolutely divine. Sometimes the simplest ingredients create the most memorable meals. #cooking #homemade #foodie",
+        "Weekend project complete! Built this cozy reading nook by the window. 📚 Perfect spot for morning coffee and getting lost in a good book. There's nothing quite like creating your own little sanctuary at home. #DIY #reading #cozy"
       ],
       'pdf': [
-        "QUARTERLY BUSINESS REPORT: Our social media engagement has increased by 150% this quarter through strategic content optimization and community building initiatives. Key achievements include viral campaign success and influencer partnerships.",
-        "RESEARCH FINDINGS: Study shows that posts with authentic storytelling receive 300% more engagement than purely promotional content. Recommendation: Focus on personal narratives and behind-the-scenes content.",
-        "MARKETING STRATEGY: Analysis of top-performing posts reveals that user-generated content drives 5x more engagement than brand-created posts. Strategic pivot recommended towards community-driven content creation."
+        "QUARTERLY SOCIAL MEDIA REPORT: Our engagement metrics have improved significantly this quarter. Key findings include: 40% increase in user-generated content, 65% boost in story completion rates, and 30% growth in follower retention. Strategic recommendations focus on authentic storytelling and community building.",
+        "CONTENT STRATEGY ANALYSIS: Research indicates that posts featuring behind-the-scenes content generate 3x more engagement than traditional promotional material. User behavior data suggests optimal posting times are 11 AM - 1 PM and 7 PM - 9 PM across all platforms.",
+        "MARKETING INSIGHTS DOCUMENT: Study of 10,000 social media posts reveals that content with emotional storytelling achieves 250% higher engagement rates. Key elements include personal anecdotes, vulnerability, and clear calls-to-action. Hashtag optimization remains crucial for discoverability."
       ]
     };
 
@@ -50,10 +50,11 @@ export default function App() {
     // File validation
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      setError('File size must be less than 10MB');
+      setError('File size must be less than 10MB. Please choose a smaller file.');
       return;
     }
 
+    // Reset states
     setError('');
     setExtractedText('');
     setAnalysis(null);
@@ -66,8 +67,8 @@ export default function App() {
     });
     setFiles([fileWithPreview]);
 
-    // Simulate text extraction with realistic timing
-    const extractionTime = file.type === 'application/pdf' ? 3000 : 2500;
+    // Simulate realistic text extraction timing
+    const extractionTime = file.type === 'application/pdf' ? 3500 : 2500;
     
     setTimeout(() => {
       try {
@@ -76,10 +77,10 @@ export default function App() {
           setExtractedText(mockExtractedText);
           setAppState('file-uploaded');
         } else {
-          throw new Error('Unsupported file type');
+          throw new Error('Unsupported file format');
         }
       } catch (err) {
-        setError('Failed to extract text from file. Please try a different file.');
+        setError('Failed to extract text from file. Please try uploading a different file.');
         setFiles([]);
         setAppState('idle');
       }
@@ -94,10 +95,10 @@ export default function App() {
       'application/pdf': ['.pdf'] 
     }, 
     multiple: false,
-    maxSize: 10 * 1024 * 1024 // 10MB
+    maxSize: 10 * 1024 * 1024
   });
 
-  // Mock AI Analysis (simulates Gemini API call)
+  // Mock AI Analysis (simulates Gemini API response)
   const handleAnalyze = async () => {
     if (!extractedText) return;
     setIsAnalyzing(true);
@@ -105,45 +106,61 @@ export default function App() {
     setError('');
 
     try {
-      // Simulate API call timing
+      // Simulate API processing time
       await new Promise(resolve => setTimeout(resolve, 3500));
       
-      // Mock analysis based on text content
+      // Generate realistic engagement score based on content analysis
       const wordCount = extractedText.split(' ').length;
       const hasHashtags = extractedText.includes('#');
       const hasEmojis = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/u.test(extractedText);
+      const hasQuestion = extractedText.includes('?');
+      const hasCallToAction = /\b(share|comment|follow|like|subscribe|check out|visit|try|join)\b/i.test(extractedText);
       
-      let score = 5.0;
+      let score = 4.0; // Base score
       if (hasHashtags) score += 1.5;
-      if (hasEmojis) score += 1.0;
-      if (wordCount > 20 && wordCount < 100) score += 1.0;
-      if (extractedText.toLowerCase().includes('recommend')) score += 0.5;
+      if (hasEmojis) score += 1.2;
+      if (hasQuestion) score += 0.8;
+      if (hasCallToAction) score += 1.0;
+      if (wordCount > 15 && wordCount < 80) score += 0.8; // Optimal length
+      if (extractedText.toLowerCase().includes('story') || extractedText.toLowerCase().includes('experience')) score += 0.7;
       
-      const engagementScore = Math.min(Math.max(score + (Math.random() * 2 - 1), 3.0), 10.0);
+      const engagementScore = Math.min(Math.max(score + (Math.random() * 1.5 - 0.75), 2.0), 10.0);
 
-      const suggestions = [
-        "Add more specific hashtags to increase discoverability",
-        "Include a clear call-to-action to encourage engagement",
-        "Consider posting during peak hours (11 AM - 1 PM, 7 PM - 9 PM)",
-        "Add location tags to boost local engagement",
-        "Use more emojis to make the post more visually appealing",
-        "Ask a question to encourage comments and interaction",
-        "Share personal experiences to create authentic connections",
-        "Include relevant trending hashtags for broader reach"
-      ].sort(() => 0.5 - Math.random()).slice(0, 4);
+      // Generate contextual suggestions
+      const suggestions = [];
+      if (!hasHashtags) suggestions.push("Add relevant hashtags to increase discoverability (aim for 5-10 hashtags)");
+      if (!hasEmojis) suggestions.push("Include emojis to make your post more visually appealing and engaging");
+      if (!hasQuestion) suggestions.push("Ask a question to encourage comments and boost engagement");
+      if (!hasCallToAction) suggestions.push("Add a clear call-to-action to guide your audience's next step");
+      
+      // Always include these generic suggestions
+      const additionalSuggestions = [
+        "Post during peak engagement hours (11 AM - 1 PM, 7 PM - 9 PM)",
+        "Tag relevant accounts or locations to increase reach",
+        "Share behind-the-scenes content to build authentic connections",
+        "Use trending topics or hashtags related to your content",
+        "Engage with comments quickly to boost algorithmic visibility"
+      ];
+
+      // Select 4 total suggestions
+      const allSuggestions = [...suggestions, ...additionalSuggestions];
+      const finalSuggestions = allSuggestions.slice(0, 4);
 
       setAnalysis({
         engagementScore: parseFloat(engagementScore.toFixed(1)),
-        sentiment: engagementScore > 7 ? "Very Positive" : engagementScore > 5 ? "Positive" : "Neutral",
-        suggestions
+        sentiment: engagementScore > 7.5 ? "Very Positive" : 
+                  engagementScore > 6 ? "Positive" : 
+                  engagementScore > 4 ? "Neutral" : "Needs Improvement",
+        suggestions: finalSuggestions
       });
     } catch (error) {
-      setError('Analysis failed. Please try again.');
+      setError('Analysis failed due to a technical issue. Please try again.');
+      console.error('Analysis error:', error);
     }
     setIsAnalyzing(false);
   };
 
-  // Mock Post Rewriting (simulates Gemini API call)
+  // Mock post rewriting (simulates AI content generation)
   const handleRewrite = async () => {
     if (!extractedText) return;
     setIsRewriting(true);
@@ -151,41 +168,49 @@ export default function App() {
     setError('');
 
     try {
-      // Simulate API call timing
-      await new Promise(resolve => setTimeout(resolve, 2800));
+      // Simulate API processing time
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
-      // Generate mock rewrites based on original content
-      const baseTopic = extractedText.includes('brunch') ? 'brunch' : 
-                       extractedText.includes('fitness') ? 'fitness' :
-                       extractedText.includes('business') ? 'business' : 'general';
+      // Analyze original content to generate appropriate rewrites
+      const isPersonal = /\b(I|my|me|myself|weekend|today|just|excited|love)\b/i.test(extractedText);
+      const isBusiness = /\b(report|analysis|strategy|growth|performance|metrics|professional)\b/i.test(extractedText);
+      const topic = extractedText.toLowerCase().includes('food') ? 'food' :
+                   extractedText.toLowerCase().includes('sunset') ? 'sunset' :
+                   extractedText.toLowerCase().includes('reading') ? 'reading' :
+                   extractedText.toLowerCase().includes('business') ? 'business' : 'general';
 
-      const rewriteTemplates = {
-        brunch: {
-          casual: "Just discovered this amazing brunch spot! 🥞 The food was incredible and the vibes were perfect. Definitely going back soon! Who wants to join next time? #brunchlife",
-          professional: "Experienced exceptional service and cuisine at a local establishment today. The attention to detail in both presentation and flavor profiles was noteworthy. Would recommend for business dining.",
-          excited: "OMG THIS BRUNCH WAS ABSOLUTELY INCREDIBLE!!! 🤩✨ I'm literally obsessed and already planning my next visit! You NEED to check this place out - it's pure perfection! #OBSESSED"
-        },
-        fitness: {
-          casual: "Great workout session today! 💪 Feeling energized and ready to tackle the week. Love these evening runs - they really clear my head. #fitness #motivation",
-          professional: "Completed today's training regimen with excellent results. Consistent physical activity continues to enhance both mental clarity and professional performance. Recommend incorporating regular exercise.",
-          excited: "CRUSHED my workout today!!! 🔥💪 The endorphins are REAL and I'm feeling absolutely unstoppable! Who else is staying committed to their fitness goals? Let's GO! #MOTIVATION"
-        },
-        business: {
-          casual: "Some interesting insights from our latest business review. It's amazing how small changes can lead to big improvements. Always learning! #business #growth",
-          professional: "Recent performance analysis demonstrates significant growth opportunities through strategic optimization. Data-driven approaches continue to yield measurable improvements in key metrics.",
-          excited: "WOW! The results from our latest initiatives are AMAZING! 📈 So proud of what we've accomplished and excited for what's next! Team work makes the dream work! #SUCCESS"
+      const generateRewrites = () => {
+        if (topic === 'food') {
+          return {
+            casual: "Just whipped up something amazing in the kitchen! 🍝 The smells are incredible and I can't wait to dig in. Sometimes the best meals are the ones you make yourself. What's your go-to comfort food?",
+            professional: "Exploring culinary creativity through homemade cuisine. Today's experiment demonstrates how quality ingredients and attention to technique can elevate simple recipes into memorable dining experiences. Highly recommend trying new approaches in your own kitchen.",
+            excited: "OMG THIS SMELLS ABSOLUTELY INCREDIBLE!!! 🤩🍝 I'm basically drooling over here and can barely wait to taste this masterpiece! Home cooking is seriously the BEST therapy ever! Who else is obsessed with making their own food?!"
+          };
+        } else if (topic === 'sunset') {
+          return {
+            casual: "Caught this beautiful sunset during my evening walk! 🌅 These moments really help me unwind and appreciate the simple things. Nature has a way of putting everything in perspective, doesn't it?",
+            professional: "Evening reflection time complemented by nature's spectacular display. Regular outdoor activities continue to provide valuable perspective and stress relief. Recommend incorporating mindful moments into daily routines for enhanced well-being.",
+            excited: "THIS SUNSET IS ABSOLUTELY BREATHTAKING!!! 🌅✨ I literally stopped in my tracks because WOW! These are the moments that make everything worth it! Nature is the ultimate artist and I'm here for ALL of it!"
+          };
+        } else if (topic === 'business') {
+          return {
+            casual: "Really interesting insights from our latest review! 📊 It's amazing how small tweaks can lead to big improvements. Always learning something new in this business. What strategies have worked best for you?",
+            professional: "Quarterly performance analysis reveals significant opportunities for strategic optimization. Data-driven approaches continue to demonstrate measurable impact across key performance indicators. Recommend implementing similar analytical frameworks for enhanced decision-making.",
+            excited: "WOW! These results are INCREDIBLE! 🚀📈 So proud of what we've accomplished this quarter! The team absolutely crushed it and I can't wait to see what we achieve next! Success feels amazing!"
+          };
+        } else {
+          return {
+            casual: "Had such a great experience today! Sometimes it's the little moments that make the biggest impact. Hope everyone else is having an awesome day too! What's been the highlight of your day?",
+            professional: "Today's activities provided valuable insights and positive outcomes. Consistent focus on meaningful experiences continues to yield beneficial results. Recommend prioritizing similar opportunities for personal and professional growth.",
+            excited: "Today was absolutely AMAZING!!! ✨ I'm still buzzing with positive energy and can't contain my excitement! Days like this remind me why I love what I do! Who else is feeling this good energy?!"
+          };
         }
       };
 
-      const selectedTemplate = rewriteTemplates[baseTopic] || rewriteTemplates.general;
-      
-      setRewrittenPosts(selectedTemplate || {
-        casual: "Here's a more casual take on your content! Added some friendly vibes while keeping the main message clear and engaging.",
-        professional: "This version maintains professionalism while emphasizing key points. Suitable for business contexts while remaining accessible.",
-        excited: "This version is full of energy and enthusiasm! Perfect for grabbing attention and creating excitement around your message!"
-      });
+      setRewrittenPosts(generateRewrites());
     } catch (error) {
-      setError('Rewriting failed. Please try again.');
+      setError('Post rewriting failed due to a technical issue. Please try again.');
+      console.error('Rewrite error:', error);
     }
     setIsRewriting(false);
   };
@@ -209,6 +234,13 @@ export default function App() {
   };
 
   const handleReset = () => {
+    // Clean up object URLs to prevent memory leaks
+    files.forEach(file => {
+      if (file.preview) {
+        URL.revokeObjectURL(file.preview);
+      }
+    });
+    
     setFiles([]);
     setExtractedText('');
     setAnalysis(null);
@@ -227,41 +259,43 @@ export default function App() {
       <Header theme={theme} toggleTheme={toggleTheme} />
 
       <main className="relative z-10 flex flex-col items-center p-4 sm:p-6 lg:p-8">
+        {/* Hero Section */}
         <section className="text-center max-w-3xl mx-auto mt-8 mb-12">
           <h2 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-gray-900 dark:text-white animate-text-reveal">
             Unlock Peak Engagement
           </h2>
           <p className="mt-4 text-lg text-gray-600 dark:text-gray-400 animate-text-reveal-delayed">
-            Transform your social media posts with AI-driven insights. Upload a file to see how you can captivate your audience.
+            Transform your social media posts with AI-driven insights. Upload a file to analyze your content and discover how to captivate your audience.
           </p>
         </section>
 
+        {/* Main Application Card */}
         <div className="w-full max-w-4xl mx-auto bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl rounded-2xl border border-gray-200/80 dark:border-gray-700/80 shadow-2xl p-6 sm:p-8 transition-all duration-500">
           
           {/* File Upload Section */}
           {appState === 'idle' && (
             <div {...getRootProps()} className={`text-center p-8 border-2 border-dashed rounded-xl transition-all cursor-pointer ${
               isDragActive 
-                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-105' 
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-105 shadow-lg' 
                 : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
             }`}>
               <input {...getInputProps()} />
               <div className="animate-fade-in">
-                <Upload className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <Upload className={`h-16 w-16 mx-auto mb-4 transition-colors ${isDragActive ? 'text-blue-500' : 'text-gray-400'}`} />
                 <button className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800">
-                  {isDragActive ? 'Drop files here...' : 'Select a File'}
+                  {isDragActive ? 'Drop your file here...' : 'Select a File'}
                 </button>
                 <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
                   or drag and drop PDF or image files here
                 </p>
                 <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                  Supports: PDF, JPG, PNG, GIF, BMP, WebP (Max 10MB)
+                  Supported formats: PDF, JPG, PNG, GIF, BMP, WebP • Maximum size: 10MB
                 </p>
               </div>
               {error && (
-                <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                  <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+                <div className="mt-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-center gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+                  <p className="text-red-600 dark:text-red-400 text-sm text-left">{error}</p>
                 </div>
               )}
             </div>
@@ -270,59 +304,76 @@ export default function App() {
           {/* File Processing Section */}
           {appState !== 'idle' && (
             <>
+              {/* File Info Header */}
               <div className="flex flex-col sm:flex-row justify-between items-center pb-6 border-b border-gray-200/80 dark:border-gray-700/80">
                 <div className="flex items-center gap-4">
-                  <div className="flex-shrink-0 w-12 h-12 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
+                  <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/50 dark:to-purple-900/50 rounded-xl flex items-center justify-center">
                     {files[0]?.type.startsWith('image/') ? 
-                      <Image className="h-6 w-6 text-blue-600 dark:text-blue-400" /> : 
-                      <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                      <Image className="h-7 w-7 text-blue-600 dark:text-blue-400" /> : 
+                      <FileText className="h-7 w-7 text-blue-600 dark:text-blue-400" />
                     }
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">{files[0]?.name}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {isLoading ? 'Processing...' : 'Ready for analysis'}
+                    <p className="font-semibold text-gray-900 dark:text-white text-lg">{files[0]?.name}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                      {isLoading ? (
+                        <>
+                          <Loader className="h-4 w-4 animate-spin" />
+                          {files[0]?.type === 'application/pdf' ? 'Parsing PDF...' : 'Running OCR...'}
+                        </>
+                      ) : (
+                        'Text extracted successfully'
+                      )}
                     </p>
                   </div>
                 </div>
                 <button 
                   onClick={handleReset} 
-                  className="mt-4 sm:mt-0 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  className="mt-4 sm:mt-0 flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
+                  <RefreshCw className="h-4 w-4" />
                   Start Over
                 </button>
               </div>
 
               {/* Extracted Text Section */}
               <div className="mt-6">
-                <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">
-                  Extracted Text {isLoading && <span className="text-sm font-normal text-gray-500">(Processing...)</span>}
+                <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Extracted Text
                 </h3>
-                <div className="text-gray-600 dark:text-gray-300 bg-gray-100/80 dark:bg-gray-900/70 p-4 rounded-lg text-sm leading-relaxed max-h-48 overflow-y-auto border border-gray-200/80 dark:border-gray-700/80">
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-6 rounded-xl border border-gray-200/80 dark:border-gray-700/80 max-h-64 overflow-y-auto">
                   {isLoading ? (
-                    <div className="flex items-center gap-2 justify-center py-4">
-                      <Loader className="animate-spin h-5 w-5" />
-                      <span>
-                        {files[0]?.type === 'application/pdf' 
-                          ? 'Parsing PDF and extracting text...' 
-                          : 'Running OCR on image...'}
-                      </span>
+                    <div className="flex items-center justify-center gap-3 py-8 text-gray-500 dark:text-gray-400">
+                      <Loader className="animate-spin h-6 w-6" />
+                      <div className="text-center">
+                        <p className="font-medium">
+                          {files[0]?.type === 'application/pdf' 
+                            ? 'Parsing PDF and extracting text...' 
+                            : 'Processing image with OCR technology...'}
+                        </p>
+                        <p className="text-sm mt-1">This may take a few moments</p>
+                      </div>
                     </div>
-                  ) : extractedText || 'No text extracted yet.'}
+                  ) : extractedText ? (
+                    <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{extractedText}</p>
+                  ) : (
+                    <p className="text-gray-500 dark:text-gray-400 text-center py-4">No text extracted yet.</p>
+                  )}
                 </div>
 
                 {/* Action Buttons */}
                 {!isLoading && extractedText && (
-                  <div className="mt-4 flex gap-4">
+                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <button 
                       onClick={handleAnalyze} 
                       disabled={isAnalyzing} 
-                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg disabled:opacity-50 transition-all duration-300"
+                      className="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
                     >
                       {isAnalyzing ? (
                         <>
                           <Loader className="animate-spin h-5 w-5" />
-                          Analyzing...
+                          Analyzing Content...
                         </>
                       ) : (
                         <>
@@ -334,12 +385,12 @@ export default function App() {
                     <button 
                       onClick={handleRewrite} 
                       disabled={isRewriting} 
-                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 transition-all duration-300"
+                      className="flex items-center justify-center gap-3 px-6 py-4 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-xl shadow-lg hover:shadow-xl hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
                     >
                       {isRewriting ? (
                         <>
                           <Loader className="animate-spin h-5 w-5" />
-                          Rewriting...
+                          Rewriting Posts...
                         </>
                       ) : (
                         <>
@@ -354,26 +405,43 @@ export default function App() {
 
               {/* Results Section */}
               {(analysis || rewrittenPosts) && (
-                <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* Analysis Results */}
                   {analysis && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">📊 Analysis Results</h3>
-                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-lg border border-gray-200/80 dark:border-gray-700/80">
-                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Engagement Score</p>
-                        <p className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
-                          {analysis.engagementScore}/10
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          Sentiment: <span className="font-medium">{analysis.sentiment}</span>
-                        </p>
+                    <div className="space-y-6">
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                        <BarChart2 className="h-5 w-5" />
+                        Analysis Results
+                      </h3>
+                      
+                      {/* Engagement Score Card */}
+                      <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-6 rounded-xl border border-blue-200/50 dark:border-blue-700/50">
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Engagement Score</p>
+                          <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-2">
+                            {analysis.engagementScore}/10
+                          </div>
+                          <div className="flex items-center justify-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${analysis.sentiment === 'Very Positive' ? 'bg-green-500' : analysis.sentiment === 'Positive' ? 'bg-blue-500' : 'bg-yellow-500'}`}></div>
+                            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                              Sentiment: {analysis.sentiment}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-gray-900 dark:text-white">💡 Suggestions</h4>
+
+                      {/* Suggestions List */}
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                          <Star className="h-4 w-4 text-yellow-500" />
+                          Improvement Suggestions
+                        </h4>
                         {analysis.suggestions.map((suggestion, i) => (
-                          <div key={i} className="flex items-start gap-3 text-sm p-3 bg-gray-100/80 dark:bg-gray-900/70 rounded-lg hover:bg-gray-200/80 dark:hover:bg-gray-700/70 transition-colors">
-                            <Star className="h-4 w-4 mt-0.5 text-yellow-500 flex-shrink-0" />
-                            <span className="text-gray-700 dark:text-gray-300">{suggestion}</span>
+                          <div key={i} className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200/50 dark:border-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+                              <span className="text-xs font-bold text-yellow-600 dark:text-yellow-400">{i + 1}</span>
+                            </div>
+                            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{suggestion}</p>
                           </div>
                         ))}
                       </div>
@@ -382,26 +450,31 @@ export default function App() {
 
                   {/* Rewritten Posts */}
                   {rewrittenPosts && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">✨ Rewritten Posts</h3>
+                    <div className="space-y-6">
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-yellow-500" />
+                        Rewritten Posts
+                      </h3>
                       {Object.entries(rewrittenPosts).map(([tone, text]) => (
-                        <div key={tone} className="p-4 bg-gray-100/80 dark:bg-gray-900/70 rounded-lg border border-gray-200/80 dark:border-gray-700/80">
-                          <div className="flex justify-between items-center mb-3">
-                            <span className="font-semibold capitalize text-blue-600 dark:text-blue-400 text-lg">
+                        <div key={tone} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden">
+                          <div className="flex justify-between items-center p-4 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
+                            <span className="font-semibold capitalize text-lg text-gray-800 dark:text-gray-200">
                               {tone} Tone
                             </span>
                             <button 
                               onClick={() => handleCopy(text, tone)} 
-                              className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                              className="p-2 rounded-lg hover:bg-white dark:hover:bg-gray-600 transition-colors group"
                               title="Copy to clipboard"
                             >
                               {copied === tone ? 
-                                <Check className="h-4 w-4 text-green-500" /> : 
-                                <Copy className="h-4 w-4 text-gray-500" />
+                                <Check className="h-5 w-5 text-green-500" /> : 
+                                <Copy className="h-5 w-5 text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300" />
                               }
                             </button>
                           </div>
-                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{text}</p>
+                          <div className="p-4">
+                            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{text}</p>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -411,8 +484,8 @@ export default function App() {
 
               {/* Error Display */}
               {error && !isLoading && (
-                <div className="mt-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                <div className="mt-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-center gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0" />
                   <p className="text-red-600 dark:text-red-400">{error}</p>
                 </div>
               )}
@@ -420,43 +493,55 @@ export default function App() {
           )}
         </div>
 
-        {/* Workflow Section */}
-        <section className="w-full max-w-5xl mx-auto mt-20 text-center">
-          <h3 className="text-3xl font-bold text-gray-900 dark:text-white">How It Works</h3>
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="p-6 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md rounded-xl border border-gray-200/80 dark:border-gray-700/80">
-              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 font-bold text-xl mx-auto">
+        {/* How It Works Section */}
+        <section className="w-full max-w-6xl mx-auto mt-24">
+          <div className="text-center mb-12">
+            <h3 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">How It Works</h3>
+            <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+              Our AI-powered platform analyzes your content and provides actionable insights to maximize engagement
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="group p-8 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md rounded-2xl border border-gray-200/80 dark:border-gray-700/80 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold text-xl mx-auto mb-6 group-hover:scale-110 transition-transform">
                 <Upload className="h-8 w-8" />
               </div>
-              <h4 className="mt-4 text-lg font-semibold">Upload & Extract</h4>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">
-                Upload PDF or image files. Our OCR technology extracts text while preserving formatting.
+              <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 text-center">Upload & Extract</h4>
+              <p className="text-gray-600 dark:text-gray-400 text-center leading-relaxed">
+                Upload PDF documents or image files. Our advanced OCR technology extracts text while preserving formatting and context.
               </p>
             </div>
-            <div className="p-6 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md rounded-xl border border-gray-200/80 dark:border-gray-700/80">
-              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 font-bold text-xl mx-auto">
+            <div className="group p-8 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md rounded-2xl border border-gray-200/80 dark:border-gray-700/80 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 text-white font-bold text-xl mx-auto mb-6 group-hover:scale-110 transition-transform">
                 <BarChart2 className="h-8 w-8" />
               </div>
-              <h4 className="mt-4 text-lg font-semibold">AI Analysis</h4>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">
-                Advanced AI analyzes engagement potential, sentiment, and provides actionable improvement suggestions.
+              <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 text-center">AI Analysis</h4>
+              <p className="text-gray-600 dark:text-gray-400 text-center leading-relaxed">
+                Advanced AI analyzes engagement potential, sentiment, and content structure to provide personalized improvement recommendations.
               </p>
             </div>
-            <div className="p-6 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md rounded-xl border border-gray-200/80 dark:border-gray-700/80">
-              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 font-bold text-xl mx-auto">
+            <div className="group p-8 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md rounded-2xl border border-gray-200/80 dark:border-gray-700/80 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 text-white font-bold text-xl mx-auto mb-6 group-hover:scale-110 transition-transform">
                 <Sparkles className="h-8 w-8" />
               </div>
-              <h4 className="mt-4 text-lg font-semibold">Optimize & Share</h4>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">
-                Get rewritten versions in different tones and implement suggestions to maximize engagement.
+              <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 text-center">Optimize & Share</h4>
+              <p className="text-gray-600 dark:text-gray-400 text-center leading-relaxed">
+                Get rewritten versions in different tones and implement our suggestions to maximize your social media engagement.
               </p>
             </div>
           </div>
         </section>
       </main>
 
-      <footer className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 py-8 border-t border-gray-200/80 dark:border-gray-700/80 text-center text-sm text-gray-500 dark:text-gray-400">
-        <p>&copy; {new Date().getFullYear()} Content Analyzer. Built for technical assessment demonstration.</p>
+      <footer className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-20 py-12 border-t border-gray-200/80 dark:border-gray-700/80">
+        <div className="text-center">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+            &copy; {new Date().getFullYear()} Social Media Content Analyzer
+          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            Built for technical assessment demonstration • Powered by AI
+          </p>
+        </div>
       </footer>
     </div>
   );
