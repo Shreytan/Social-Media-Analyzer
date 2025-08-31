@@ -1,48 +1,15 @@
 import { useState, useEffect } from 'react';
 import AnimatedBlobs from './components/AnimatedBlobs';
 import Header from './components/Header';
-import FileUpload from './components/FileUpload';
-import TextExtraction from './components/TextExtraction';
-import Analysis from './components/Analysis';
-import RewrittenPosts from './components/RewrittenPosts';
-import { useFileUpload } from './hooks/useFileUpload';
-import { useAIAnalysis } from './hooks/useAIAnalysis';
 
 export default function App() {
   const [theme, setTheme] = useState('dark');
-  
-  const {
-    extractedText,
-    isLoading: isFileLoading,
-    error: fileError,
-    appState,
-    handleFileUpload,
-    reset: resetFile
-  } = useFileUpload();
-
-  const {
-    analysis,
-    rewrittenPosts,
-    isAnalyzing,
-    isRewriting,
-    error: aiError,
-    handleAnalyze,
-    handleRewrite,
-    reset: resetAI
-  } = useAIAnalysis();
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
   const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
-
-  const handleReset = () => {
-    resetFile();
-    resetAI();
-  };
-
-  const error = fileError || aiError;
 
   return (
     <div className="relative min-h-screen w-full text-gray-800 dark:text-gray-200 font-sans transition-colors duration-300 overflow-hidden bg-gray-100 dark:bg-black">
@@ -61,47 +28,14 @@ export default function App() {
         </section>
 
         <div className="w-full max-w-4xl mx-auto bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl rounded-2xl border border-gray-200/80 dark:border-gray-700/80 shadow-2xl p-6 sm:p-8 transition-all duration-500">
-          
-          <FileUpload 
-            onFileUpload={handleFileUpload}
-            isLoading={isFileLoading}
-            error={error}
-            onReset={handleReset}
-          />
-
-          {appState !== 'idle' && (
-            <>
-              <TextExtraction 
-                extractedText={extractedText}
-                isLoading={isFileLoading}
-                onRewrite={() => handleRewrite(extractedText)}
-                isRewriting={isRewriting}
-              />
-
-              {(analysis || rewrittenPosts) && (
-                <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <Analysis 
-                    analysis={analysis}
-                    onAnalyze={() => handleAnalyze(extractedText)}
-                    isAnalyzing={isAnalyzing}
-                    hasAnalyzed={!!analysis}
-                  />
-                  <RewrittenPosts rewrittenPosts={rewrittenPosts} />
-                </div>
-              )}
-
-              {!analysis && !isAnalyzing && appState === 'file-uploaded' && (
-                <div className="mt-6">
-                  <Analysis 
-                    analysis={null}
-                    onAnalyze={() => handleAnalyze(extractedText)}
-                    isAnalyzing={isAnalyzing}
-                    hasAnalyzed={false}
-                  />
-                </div>
-              )}
-            </>
-          )}
+          <div className="text-center animate-fade-in">
+            <button className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800">
+              Select a File
+            </button>
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+              or drag and drop file here
+            </p>
+          </div>
         </div>
 
         <section className="w-full max-w-5xl mx-auto mt-20 text-center">
