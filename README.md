@@ -275,7 +275,7 @@ This project is created for technical assessment purposes. MIT License.
 
 ## 📞 Contact
 
-**Shreyansh Tandon** - [GitHub](https://github.com/Shreytan)
+**Shreyansh Shukla** - [GitHub](https://github.com/Shreytan)
 
 **Project Repository:** [https://github.com/Shreytan/Social-Media-Analyzer](https://github.com/Shreytan/Social-Media-Analyzer)
 
