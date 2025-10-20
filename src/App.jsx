@@ -3,6 +3,11 @@ import AnimatedBlobs from './components/AnimatedBlobs';
 import Header from './components/Header';
 import { useDropzone } from 'react-dropzone';
 import { FileText, Image, Loader, BarChart2, Sparkles, Star, Copy, Check, Upload, AlertCircle, RefreshCw } from 'lucide-react';
+import Tesseract from 'tesseract.js';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export default function App() {
   const [theme, setTheme] = useState('dark');
@@ -16,6 +21,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [appState, setAppState] = useState('idle');
   const [copied, setCopied] = useState(null);
+  const [extractionProgress, setExtractionProgress] = useState(0);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -23,24 +29,169 @@ export default function App() {
 
   const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
 
-  // Mock text extraction (simulates OCR for images and PDF parsing)
-  const extractTextFromFile = (file) => {
-    const mockTexts = {
-      'image': [
-        "Just discovered this incredible sunset view from my evening jog! 🌅 There's something magical about ending the day with nature's masterpiece. Who else finds peace in these golden hour moments? #sunset #mindfulness #gratitude",
-        "Excited to share my latest cooking experiment - homemade pasta with garden-fresh basil! 🍝 The aroma filling my kitchen right now is absolutely divine. Sometimes the simplest ingredients create the most memorable meals. #cooking #homemade #foodie",
-        "Weekend project complete! Built this cozy reading nook by the window. 📚 Perfect spot for morning coffee and getting lost in a good book. There's nothing quite like creating your own little sanctuary at home. #DIY #reading #cozy"
-      ],
-      'pdf': [
-        "QUARTERLY SOCIAL MEDIA REPORT: Our engagement metrics have improved significantly this quarter. Key findings include: 40% increase in user-generated content, 65% boost in story completion rates, and 30% growth in follower retention. Strategic recommendations focus on authentic storytelling and community building.",
-        "CONTENT STRATEGY ANALYSIS: Research indicates that posts featuring behind-the-scenes content generate 3x more engagement than traditional promotional material. User behavior data suggests optimal posting times are 11 AM - 1 PM and 7 PM - 9 PM across all platforms.",
-        "MARKETING INSIGHTS DOCUMENT: Study of 10,000 social media posts reveals that content with emotional storytelling achieves 250% higher engagement rates. Key elements include personal anecdotes, vulnerability, and clear calls-to-action. Hashtag optimization remains crucial for discoverability."
-      ]
+  // REAL OCR Implementation using Tesseract.js
+  const extractTextFromImage = async (file) => {
+    try {
+      const result = await Tesseract.recognize(file, 'eng', {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            setExtractionProgress(Math.round(m.progress * 100));
+          }
+          console.log(m);
+        }
+      });
+      return result.data.text.trim();
+    } catch (error) {
+      console.error('OCR Error:', error);
+      throw new Error('Failed to extract text from image. Please try a clearer image.');
+    }
+  };
+
+  // REAL PDF Parsing Implementation using PDF.js
+  const extractTextFromPDF = async (file) => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+      
+      let fullText = '';
+      const totalPages = pdf.numPages;
+      
+      for (let i = 1; i <= totalPages; i++) {
+        setExtractionProgress(Math.round((i / totalPages) * 100));
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n';
+      }
+      
+      return fullText.trim();
+    } catch (error) {
+      console.error('PDF Error:', error);
+      throw new Error('Failed to parse PDF. Please try a different PDF file.');
+    }
+  };
+
+  // REAL AI Analysis using Google Gemini API
+  const analyzeWithGemini = async (text) => {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('Gemini API key not configured');
+    }
+
+    const prompt = `Analyze the following social media post text and provide detailed engagement insights. 
+
+Post: "${text}"
+
+Please provide your analysis as a JSON object with:
+1. engagementScore: A number from 1-10 rating the post's engagement potential
+2. sentiment: One word describing sentiment (Positive, Negative, or Neutral)
+3. suggestions: An array of exactly 4 specific, actionable improvement suggestions
+
+Focus on practical improvements like hashtags, timing, call-to-actions, and content structure.`;
+
+    const schema = {
+      type: "OBJECT",
+      properties: {
+        engagementScore: { type: "NUMBER" },
+        sentiment: { type: "STRING" },
+        suggestions: { 
+          type: "ARRAY", 
+          items: { type: "STRING" },
+          maxItems: 4
+        }
+      },
+      required: ["engagementScore", "sentiment", "suggestions"]
     };
 
-    const fileType = file.type.startsWith('image/') ? 'image' : 'pdf';
-    const texts = mockTexts[fileType];
-    return texts[Math.floor(Math.random() * texts.length)];
+    const response = await fetch(
+  `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+  {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: schema,
+        temperature: 0.7,
+      },
+    }),
+  }
+);
+
+
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const text_response = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text_response) {
+      throw new Error("Invalid response from Gemini API");
+    }
+
+    return JSON.parse(text_response);
+  };
+
+  // REAL Content Rewriting using Google Gemini API
+  const rewriteWithGemini = async (text) => {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('Gemini API key not configured');
+    }
+
+    const prompt = `Rewrite the following social media post in three distinct tones while preserving the core message and key information:
+
+Original Post: "${text}"
+
+Please provide three versions as a JSON object with:
+1. casual: Friendly, relaxed tone for personal/lifestyle brands
+2. professional: Business-appropriate tone for corporate accounts  
+3. excited: High-energy, enthusiastic tone for maximum engagement
+
+Each rewrite should be engaging, appropriate for social media, and maintain the original meaning.`;
+
+    const schema = {
+      type: "OBJECT",
+      properties: {
+        casual: { type: "STRING" },
+        professional: { type: "STRING" },
+        excited: { type: "STRING" }
+      },
+      required: ["casual", "professional", "excited"]
+    };
+
+    const response = await fetch(
+  `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+  {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: schema,
+        temperature: 0.8,
+      },
+    }),
+  }
+);
+
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const text_response = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text_response) {
+      throw new Error("Invalid response from Gemini API");
+    }
+
+    return JSON.parse(text_response);
   };
 
   const onDrop = useCallback(acceptedFiles => {
@@ -60,6 +211,7 @@ export default function App() {
     setAnalysis(null);
     setRewrittenPosts(null);
     setIsLoading(true);
+    setExtractionProgress(0);
     setAppState('loading-file');
 
     const fileWithPreview = Object.assign(file, { 
@@ -67,25 +219,38 @@ export default function App() {
     });
     setFiles([fileWithPreview]);
 
-    // Simulate realistic text extraction timing
-    const extractionTime = file.type === 'application/pdf' ? 3500 : 2500;
-    
-    setTimeout(() => {
+    // Real text extraction
+    const extractText = async () => {
       try {
-        if (file.type.startsWith('image/') || file.type === 'application/pdf') {
-          const mockExtractedText = extractTextFromFile(file);
-          setExtractedText(mockExtractedText);
-          setAppState('file-uploaded');
+        let text = '';
+        
+        if (file.type.startsWith('image/')) {
+          // Real OCR processing
+          text = await extractTextFromImage(file);
+        } else if (file.type === 'application/pdf') {
+          // Real PDF processing
+          text = await extractTextFromPDF(file);
         } else {
           throw new Error('Unsupported file format');
         }
+
+        if (!text || text.trim().length === 0) {
+          throw new Error('No text could be extracted from this file. Please try a different file with clearer text.');
+        }
+
+        setExtractedText(text);
+        setAppState('file-uploaded');
       } catch (err) {
-        setError('Failed to extract text from file. Please try uploading a different file.');
+        console.error('Extraction error:', err);
+        setError(err.message || 'Failed to extract text from file. Please try a different file.');
         setFiles([]);
         setAppState('idle');
       }
       setIsLoading(false);
-    }, extractionTime);
+      setExtractionProgress(0);
+    };
+
+    extractText();
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
@@ -98,7 +263,7 @@ export default function App() {
     maxSize: 10 * 1024 * 1024
   });
 
-  // Mock AI Analysis (simulates Gemini API response)
+  // Real AI Analysis
   const handleAnalyze = async () => {
     if (!extractedText) return;
     setIsAnalyzing(true);
@@ -106,61 +271,16 @@ export default function App() {
     setError('');
 
     try {
-      // Simulate API processing time
-      await new Promise(resolve => setTimeout(resolve, 3500));
-      
-      // Generate realistic engagement score based on content analysis
-      const wordCount = extractedText.split(' ').length;
-      const hasHashtags = extractedText.includes('#');
-      const hasEmojis = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/u.test(extractedText);
-      const hasQuestion = extractedText.includes('?');
-      const hasCallToAction = /\b(share|comment|follow|like|subscribe|check out|visit|try|join)\b/i.test(extractedText);
-      
-      let score = 4.0; // Base score
-      if (hasHashtags) score += 1.5;
-      if (hasEmojis) score += 1.2;
-      if (hasQuestion) score += 0.8;
-      if (hasCallToAction) score += 1.0;
-      if (wordCount > 15 && wordCount < 80) score += 0.8; // Optimal length
-      if (extractedText.toLowerCase().includes('story') || extractedText.toLowerCase().includes('experience')) score += 0.7;
-      
-      const engagementScore = Math.min(Math.max(score + (Math.random() * 1.5 - 0.75), 2.0), 10.0);
-
-      // Generate contextual suggestions
-      const suggestions = [];
-      if (!hasHashtags) suggestions.push("Add relevant hashtags to increase discoverability (aim for 5-10 hashtags)");
-      if (!hasEmojis) suggestions.push("Include emojis to make your post more visually appealing and engaging");
-      if (!hasQuestion) suggestions.push("Ask a question to encourage comments and boost engagement");
-      if (!hasCallToAction) suggestions.push("Add a clear call-to-action to guide your audience's next step");
-      
-      // Always include these generic suggestions
-      const additionalSuggestions = [
-        "Post during peak engagement hours (11 AM - 1 PM, 7 PM - 9 PM)",
-        "Tag relevant accounts or locations to increase reach",
-        "Share behind-the-scenes content to build authentic connections",
-        "Use trending topics or hashtags related to your content",
-        "Engage with comments quickly to boost algorithmic visibility"
-      ];
-
-      // Select 4 total suggestions
-      const allSuggestions = [...suggestions, ...additionalSuggestions];
-      const finalSuggestions = allSuggestions.slice(0, 4);
-
-      setAnalysis({
-        engagementScore: parseFloat(engagementScore.toFixed(1)),
-        sentiment: engagementScore > 7.5 ? "Very Positive" : 
-                  engagementScore > 6 ? "Positive" : 
-                  engagementScore > 4 ? "Neutral" : "Needs Improvement",
-        suggestions: finalSuggestions
-      });
+      const result = await analyzeWithGemini(extractedText);
+      setAnalysis(result);
     } catch (error) {
-      setError('Analysis failed due to a technical issue. Please try again.');
       console.error('Analysis error:', error);
+      setError(error.message || 'Failed to analyze content. Please check your internet connection and try again.');
     }
     setIsAnalyzing(false);
   };
 
-  // Mock post rewriting (simulates AI content generation)
+  // Real Content Rewriting
   const handleRewrite = async () => {
     if (!extractedText) return;
     setIsRewriting(true);
@@ -168,49 +288,11 @@ export default function App() {
     setError('');
 
     try {
-      // Simulate API processing time
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      // Analyze original content to generate appropriate rewrites
-      const isPersonal = /\b(I|my|me|myself|weekend|today|just|excited|love)\b/i.test(extractedText);
-      const isBusiness = /\b(report|analysis|strategy|growth|performance|metrics|professional)\b/i.test(extractedText);
-      const topic = extractedText.toLowerCase().includes('food') ? 'food' :
-                   extractedText.toLowerCase().includes('sunset') ? 'sunset' :
-                   extractedText.toLowerCase().includes('reading') ? 'reading' :
-                   extractedText.toLowerCase().includes('business') ? 'business' : 'general';
-
-      const generateRewrites = () => {
-        if (topic === 'food') {
-          return {
-            casual: "Just whipped up something amazing in the kitchen! 🍝 The smells are incredible and I can't wait to dig in. Sometimes the best meals are the ones you make yourself. What's your go-to comfort food?",
-            professional: "Exploring culinary creativity through homemade cuisine. Today's experiment demonstrates how quality ingredients and attention to technique can elevate simple recipes into memorable dining experiences. Highly recommend trying new approaches in your own kitchen.",
-            excited: "OMG THIS SMELLS ABSOLUTELY INCREDIBLE!!! 🤩🍝 I'm basically drooling over here and can barely wait to taste this masterpiece! Home cooking is seriously the BEST therapy ever! Who else is obsessed with making their own food?!"
-          };
-        } else if (topic === 'sunset') {
-          return {
-            casual: "Caught this beautiful sunset during my evening walk! 🌅 These moments really help me unwind and appreciate the simple things. Nature has a way of putting everything in perspective, doesn't it?",
-            professional: "Evening reflection time complemented by nature's spectacular display. Regular outdoor activities continue to provide valuable perspective and stress relief. Recommend incorporating mindful moments into daily routines for enhanced well-being.",
-            excited: "THIS SUNSET IS ABSOLUTELY BREATHTAKING!!! 🌅✨ I literally stopped in my tracks because WOW! These are the moments that make everything worth it! Nature is the ultimate artist and I'm here for ALL of it!"
-          };
-        } else if (topic === 'business') {
-          return {
-            casual: "Really interesting insights from our latest review! 📊 It's amazing how small tweaks can lead to big improvements. Always learning something new in this business. What strategies have worked best for you?",
-            professional: "Quarterly performance analysis reveals significant opportunities for strategic optimization. Data-driven approaches continue to demonstrate measurable impact across key performance indicators. Recommend implementing similar analytical frameworks for enhanced decision-making.",
-            excited: "WOW! These results are INCREDIBLE! 🚀📈 So proud of what we've accomplished this quarter! The team absolutely crushed it and I can't wait to see what we achieve next! Success feels amazing!"
-          };
-        } else {
-          return {
-            casual: "Had such a great experience today! Sometimes it's the little moments that make the biggest impact. Hope everyone else is having an awesome day too! What's been the highlight of your day?",
-            professional: "Today's activities provided valuable insights and positive outcomes. Consistent focus on meaningful experiences continues to yield beneficial results. Recommend prioritizing similar opportunities for personal and professional growth.",
-            excited: "Today was absolutely AMAZING!!! ✨ I'm still buzzing with positive energy and can't contain my excitement! Days like this remind me why I love what I do! Who else is feeling this good energy?!"
-          };
-        }
-      };
-
-      setRewrittenPosts(generateRewrites());
+      const result = await rewriteWithGemini(extractedText);
+      setRewrittenPosts(result);
     } catch (error) {
-      setError('Post rewriting failed due to a technical issue. Please try again.');
       console.error('Rewrite error:', error);
+      setError(error.message || 'Failed to rewrite content. Please check your internet connection and try again.');
     }
     setIsRewriting(false);
   };
@@ -250,6 +332,7 @@ export default function App() {
     setIsLoading(false);
     setIsAnalyzing(false);
     setIsRewriting(false);
+    setExtractionProgress(0);
   };
 
   return (
@@ -320,6 +403,7 @@ export default function App() {
                         <>
                           <Loader className="h-4 w-4 animate-spin" />
                           {files[0]?.type === 'application/pdf' ? 'Parsing PDF...' : 'Running OCR...'}
+                          {extractionProgress > 0 && ` (${extractionProgress}%)`}
                         </>
                       ) : (
                         'Text extracted successfully'
@@ -341,22 +425,43 @@ export default function App() {
                 <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
                   <FileText className="h-5 w-5" />
                   Extracted Text
+                  {isLoading && extractionProgress > 0 && (
+                    <span className="text-sm font-normal text-gray-500">({extractionProgress}%)</span>
+                  )}
                 </h3>
                 <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-6 rounded-xl border border-gray-200/80 dark:border-gray-700/80 max-h-64 overflow-y-auto">
                   {isLoading ? (
-                    <div className="flex items-center justify-center gap-3 py-8 text-gray-500 dark:text-gray-400">
-                      <Loader className="animate-spin h-6 w-6" />
+                    <div className="flex flex-col items-center justify-center gap-3 py-8 text-gray-500 dark:text-gray-400">
+                      <Loader className="animate-spin h-8 w-8" />
                       <div className="text-center">
-                        <p className="font-medium">
+                        <p className="font-medium text-lg">
                           {files[0]?.type === 'application/pdf' 
-                            ? 'Parsing PDF and extracting text...' 
-                            : 'Processing image with OCR technology...'}
+                            ? 'Parsing PDF document...' 
+                            : 'Processing image with OCR...'}
                         </p>
-                        <p className="text-sm mt-1">This may take a few moments</p>
+                        <p className="text-sm mt-1">
+                          {files[0]?.type === 'application/pdf' 
+                            ? 'Extracting text from all pages' 
+                            : 'Recognizing text in image'}
+                        </p>
+                        {extractionProgress > 0 && (
+                          <div className="mt-3 w-48 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${extractionProgress}%` }}
+                            ></div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : extractedText ? (
-                    <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{extractedText}</p>
+                    <div>
+                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{extractedText}</p>
+                      <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 flex justify-between">
+                        <span>Characters: {extractedText.length}</span>
+                        <span>Words: {extractedText.split(/\s+/).length}</span>
+                      </div>
+                    </div>
                   ) : (
                     <p className="text-gray-500 dark:text-gray-400 text-center py-4">No text extracted yet.</p>
                   )}
@@ -373,7 +478,7 @@ export default function App() {
                       {isAnalyzing ? (
                         <>
                           <Loader className="animate-spin h-5 w-5" />
-                          Analyzing Content...
+                          Analyzing with AI...
                         </>
                       ) : (
                         <>
@@ -390,7 +495,7 @@ export default function App() {
                       {isRewriting ? (
                         <>
                           <Loader className="animate-spin h-5 w-5" />
-                          Rewriting Posts...
+                          AI Rewriting...
                         </>
                       ) : (
                         <>
@@ -411,7 +516,7 @@ export default function App() {
                     <div className="space-y-6">
                       <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                         <BarChart2 className="h-5 w-5" />
-                        Analysis Results
+                        AI Analysis Results
                       </h3>
                       
                       {/* Engagement Score Card */}
@@ -422,7 +527,10 @@ export default function App() {
                             {analysis.engagementScore}/10
                           </div>
                           <div className="flex items-center justify-center gap-2">
-                            <div className={`w-3 h-3 rounded-full ${analysis.sentiment === 'Very Positive' ? 'bg-green-500' : analysis.sentiment === 'Positive' ? 'bg-blue-500' : 'bg-yellow-500'}`}></div>
+                            <div className={`w-3 h-3 rounded-full ${
+                              analysis.sentiment === 'Positive' ? 'bg-green-500' : 
+                              analysis.sentiment === 'Negative' ? 'bg-red-500' : 'bg-yellow-500'
+                            }`}></div>
                             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
                               Sentiment: {analysis.sentiment}
                             </span>
@@ -434,7 +542,7 @@ export default function App() {
                       <div className="space-y-3">
                         <h4 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                           <Star className="h-4 w-4 text-yellow-500" />
-                          Improvement Suggestions
+                          AI Improvement Suggestions
                         </h4>
                         {analysis.suggestions.map((suggestion, i) => (
                           <div key={i} className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200/50 dark:border-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
@@ -453,7 +561,7 @@ export default function App() {
                     <div className="space-y-6">
                       <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                         <Sparkles className="h-5 w-5 text-yellow-500" />
-                        Rewritten Posts
+                        AI-Generated Rewrites
                       </h3>
                       {Object.entries(rewrittenPosts).map(([tone, text]) => (
                         <div key={tone} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden">
@@ -498,7 +606,7 @@ export default function App() {
           <div className="text-center mb-12">
             <h3 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">How It Works</h3>
             <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Our AI-powered platform analyzes your content and provides actionable insights to maximize engagement
+              Real OCR technology and AI analysis to transform your social media content
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -506,27 +614,27 @@ export default function App() {
               <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold text-xl mx-auto mb-6 group-hover:scale-110 transition-transform">
                 <Upload className="h-8 w-8" />
               </div>
-              <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 text-center">Upload & Extract</h4>
+              <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 text-center">Real Text Extraction</h4>
               <p className="text-gray-600 dark:text-gray-400 text-center leading-relaxed">
-                Upload PDF documents or image files. Our advanced OCR technology extracts text while preserving formatting and context.
+                Upload PDF documents or images. Tesseract OCR and PDF.js extract text with high accuracy and formatting preservation.
               </p>
             </div>
             <div className="group p-8 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md rounded-2xl border border-gray-200/80 dark:border-gray-700/80 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
               <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 text-white font-bold text-xl mx-auto mb-6 group-hover:scale-110 transition-transform">
                 <BarChart2 className="h-8 w-8" />
               </div>
-              <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 text-center">AI Analysis</h4>
+              <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 text-center">Google Gemini AI Analysis</h4>
               <p className="text-gray-600 dark:text-gray-400 text-center leading-relaxed">
-                Advanced AI analyzes engagement potential, sentiment, and content structure to provide personalized improvement recommendations.
+                Real Google Gemini AI analyzes engagement potential, sentiment, and provides specific, actionable improvement recommendations.
               </p>
             </div>
             <div className="group p-8 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md rounded-2xl border border-gray-200/80 dark:border-gray-700/80 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
               <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 text-white font-bold text-xl mx-auto mb-6 group-hover:scale-110 transition-transform">
                 <Sparkles className="h-8 w-8" />
               </div>
-              <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 text-center">Optimize & Share</h4>
+              <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 text-center">AI Content Optimization</h4>
               <p className="text-gray-600 dark:text-gray-400 text-center leading-relaxed">
-                Get rewritten versions in different tones and implement our suggestions to maximize your social media engagement.
+                Get AI-powered rewrites in multiple tones and implement specific suggestions to maximize your social media engagement.
               </p>
             </div>
           </div>
@@ -539,7 +647,7 @@ export default function App() {
             &copy; {new Date().getFullYear()} Social Media Content Analyzer
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            Built for technical assessment demonstration • Powered by AI
+            Powered by Tesseract OCR, PDF.js, and Google Gemini AI
           </p>
         </div>
       </footer>
